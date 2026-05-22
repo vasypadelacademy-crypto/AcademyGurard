@@ -1,0 +1,155 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ---------------------------------------------------------
+    // 0. Global Safety Net
+    // ---------------------------------------------------------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ---------------------------------------------------------
+    // 1. Primitive Helpers
+    // ---------------------------------------------------------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isEmailVerified() {
+      return isSignedIn() && (request.auth.token.email_verified == true || request.auth.token.firebase.sign_in_provider == 'google.com');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+    
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-\\.]+$');
+    }
+
+    // RBAC Lookup
+    function getUserData() {
+      return get(/databases/$(database)/documents/appUsers/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      let userData = getUserData();
+      return isSignedIn() && userData != null && userData.role == 'admin';
+    }
+
+    function isCoach() {
+      let userData = getUserData();
+      return isSignedIn() && userData != null && userData.role == 'coach';
+    }
+
+    function getTenantId() {
+      return getUserData().ownerId;
+    }
+
+    // Identity/Owner Check
+    function isOwner(data) {
+      return isSignedIn() && data.ownerId == getTenantId();
+    }
+
+    // ---------------------------------------------------------
+    // 2. Collection Rules
+    // ---------------------------------------------------------
+
+    // Shared validation for master data types
+    function isValidMasterData(data) {
+      return data.ownerId is string && data.ownerId.size() > 0;
+    }
+
+    match /packageTypes/{id} {
+      allow read: if isAdmin() || isOwner(existing());
+      allow create: if (isAdmin() || isSignedIn()) && isValidMasterData(incoming());
+      allow update, delete: if isAdmin() || isOwner(existing());
+    }
+
+    match /locations/{id} {
+      allow read: if isAdmin() || isOwner(existing());
+      allow create: if (isAdmin() || isSignedIn()) && isValidMasterData(incoming());
+      allow update, delete: if isAdmin() || isOwner(existing());
+    }
+
+    match /levels/{id} {
+      allow read: if isAdmin() || isOwner(existing());
+      allow create: if (isAdmin() || isSignedIn()) && isValidMasterData(incoming());
+      allow update, delete: if isAdmin() || isOwner(existing());
+    }
+
+    match /groups/{id} {
+      allow read: if isAdmin() || isOwner(existing());
+      allow create: if (isAdmin() || isSignedIn()) && isValidMasterData(incoming());
+      allow update, delete: if isAdmin() || isOwner(existing());
+    }
+
+    match /pricingSchemes/{id} {
+      allow read: if isAdmin() || isOwner(existing());
+      allow create: if (isAdmin() || isSignedIn()) && isValidMasterData(incoming());
+      allow update, delete: if isAdmin() || isOwner(existing());
+    }
+
+    match /players/{id} {
+      allow read: if isAdmin() || isOwner(existing());
+      allow create: if (isAdmin() || isSignedIn()) && isValidMasterData(incoming());
+      allow update, delete: if isAdmin() || isOwner(existing());
+    }
+
+    match /packages/{id} {
+      allow read: if isAdmin() || isOwner(existing());
+      allow create: if (isAdmin() || isSignedIn()) && isValidMasterData(incoming());
+      allow update, delete: if isAdmin() || isOwner(existing());
+    }
+
+    match /sessions/{id} {
+      allow read: if isAdmin() || isOwner(existing());
+      allow create: if (isAdmin() || isSignedIn()) && isValidMasterData(incoming());
+      allow update, delete: if isAdmin() || isOwner(existing());
+    }
+
+    match /payments/{id} {
+      allow read: if isAdmin() || isOwner(existing());
+      allow create: if (isAdmin() || isSignedIn()) && isValidMasterData(incoming());
+      allow update, delete: if isAdmin() || isOwner(existing());
+    }
+
+    match /evaluations/{id} {
+      allow read: if isAdmin() || isOwner(existing());
+      allow create: if (isAdmin() || isSignedIn()) && isValidMasterData(incoming());
+      allow update, delete: if isAdmin() || isOwner(existing());
+    }
+
+    match /reminders/{id} {
+      allow read: if isAdmin() || isOwner(existing());
+      allow create: if (isAdmin() || isSignedIn()) && isValidMasterData(incoming());
+      allow update: if isAdmin() || isOwner(existing());
+      allow delete: if isAdmin() || isOwner(existing());
+    }
+
+    match /teamMessages/{id} {
+      allow read: if isAdmin() || isOwner(existing());
+      allow create: if (isAdmin() || isSignedIn()) && isValidMasterData(incoming());
+      allow update, delete: if isAdmin() || isOwner(existing());
+    }
+
+    match /appUsers/{userId} {
+      // Users can read their own profile
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      // Admins can create/edit any profile
+      allow create, update: if isAdmin();
+      // Allow creation of first admin if none exists (bootstrapping) or if master emails
+      allow create: if isAdmin() || (isSignedIn() && (request.auth.token.email == 'vasy.padelacademy@gmail.com' || request.auth.token.email == 'momen.ismail100@gmail.com'));
+      allow delete: if isAdmin();
+    }
+    
+    match /automationLogs/{id} {
+        allow read: if isAdmin();
+        allow write: if isAdmin();
+    }
+  }
+}

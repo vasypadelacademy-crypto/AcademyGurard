@@ -1,0 +1,6 @@
+{
+  "name": "Remix: AttendyMan.v1",
+  "description": "A professional schedule management app for coaches to track sessions, student progress, and availability with seamless mobile sync.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
